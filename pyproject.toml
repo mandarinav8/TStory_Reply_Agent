@@ -3,7 +3,12 @@ name = "tstory-reply-agent"
 version = "0.1.0"
 description = "Durable action ledger for a Codex-operated Tistory agent"
 requires-python = ">=3.13"
-dependencies = ["pydantic>=2.12,<3", "typer>=0.16,<1"]
+dependencies = [
+    "pydantic>=2.12,<3",
+    "typer>=0.16,<1",
+    "portalocker>=3,<4",
+    "tzdata>=2025.2; sys_platform == 'win32'",
+]
 
 [dependency-groups]
 dev = ["basedpyright>=1.31", "ruff>=0.13"]
@@ -11,7 +16,7 @@ dev = ["basedpyright>=1.31", "ruff>=0.13"]
 [tool.basedpyright]
 typeCheckingMode = "all"
 pythonVersion = "3.13"
-pythonPlatform = "Darwin"
+pythonPlatform = "All"
 venvPath = "."
 venv = ".venv"
 include = ["reply_agent"]

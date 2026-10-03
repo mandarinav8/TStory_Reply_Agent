@@ -1,6 +1,5 @@
 """Locked, atomic persistence and duplicate suppression."""
 
-import fcntl
 import os
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -9,6 +8,8 @@ from pathlib import Path
 from typing import Final, assert_never, override
 from uuid import uuid4
 from zoneinfo import ZoneInfo
+
+import portalocker
 
 from .models import (
     Action,
@@ -47,17 +48,21 @@ def locked(directory: Path) -> Generator[None]:
     """Serialize all ledger mutations across processes."""
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     with (directory / "ledger.lock").open("a", encoding="utf-8") as handle:
-        fcntl.flock(handle, fcntl.LOCK_EX)
+        portalocker.lock(handle, portalocker.LOCK_EX)
         try:
             yield
         finally:
-            fcntl.flock(handle, fcntl.LOCK_UN)
+            portalocker.unlock(handle)
 
 
 def read(directory: Path) -> Ledger:
     """Read existing state without recovering corrupt records silently."""
     path = directory / "ledger.json"
-    return Ledger.model_validate_json(path.read_text()) if path.exists() else Ledger()
+    return (
+        Ledger.model_validate_json(path.read_text(encoding="utf-8"))
+        if path.exists()
+        else Ledger()
+    )
 
 
 def save(directory: Path, ledger: Ledger) -> None:
@@ -104,7 +109,7 @@ def reserve(directory: Path, request: Request) -> Attempt:
         if (directory / "STOP").exists():
             raise BlockedError("STOP file is present")
         expected = Connection.model_validate_json(
-            (directory / "connection.json").read_text(),
+            (directory / "connection.json").read_text(encoding="utf-8"),
         )
         if request.connection != expected:
             raise BlockedError("Browser/account identity does not match local config")
